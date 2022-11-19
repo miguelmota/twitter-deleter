@@ -10,17 +10,23 @@ require 'json'
 end
 
 # --- config ----
-username = "@username"
-relative_days = (30 * 12 * 5) # 5 years
-$dry_run = false
+username = ENV['USERNAME']
+$relative_days = Integer(ENV['RELATIVE_DAYS'])
+$dry_run = ENV['DRY_RUN'] == "true"
+$delete_retweets = ENV['DELETE_RETWEETS'] == "true"
 # ---------------
+
+puts "username: #{username}"
+puts "delete_retweets: #{$delete_retweets}"
+puts "relative_days: #{$relative_days}"
+puts "dry_run: #{$dry_run}"
 
 $checked_ids = {}
 
 def check(tweet_id)
   puts "checking tweet_id: #{tweet_id}"
 
-  if !dry_run then
+  if !$dry_run then
     return delete_tweet(tweet_id)
   end
 end
@@ -42,17 +48,20 @@ def get_tweets(username, max_id = nil)
   count = 100
   timeline = nil
   if max_id != nil then
-    timeline = @client.user_timeline(user.id, { :include_rts => false, :count => count, :max_id => max_id })
+    timeline = @client.user_timeline(user.id, { :include_rts => $delete_retweets, :count => count, :max_id => max_id })
   else
-    timeline = @client.user_timeline(user.id, { :include_rts => false, :count => count })
+    timeline = @client.user_timeline(user.id, { :include_rts => $delete_retweets, :count => count })
   end
 
   list = []
   new_max_id = nil
   timeline.each do |item|
+    if !$delete_retweets and item.retweeted? then
+      next
+    end
     date = item.created_at.to_date
     now = Date.today
-    time_ago  = (now - relative_days)
+    time_ago  = (now - $relative_days)
     tweet_id = item.id
     if $checked_ids[tweet_id] then
       next
